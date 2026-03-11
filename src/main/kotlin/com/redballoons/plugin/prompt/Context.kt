@@ -2,8 +2,8 @@ package com.redballoons.plugin.prompt
 
 import com.intellij.openapi.project.Project
 import com.redballoons.plugin.model.SearchResult
+import com.redballoons.plugin.model.SelectionContext
 import com.redballoons.plugin.services.OpencodeService
-import com.redballoons.plugin.services.SelectionContext
 import java.io.File
 import java.time.Instant
 import java.util.UUID

@@ -1,6 +1,6 @@
 package com.redballoons.plugin.prompt
 
-import com.redballoons.plugin.services.SelectionContext
+import com.redballoons.plugin.model.SelectionContext
 import java.io.File
 
 object PromptStrings {

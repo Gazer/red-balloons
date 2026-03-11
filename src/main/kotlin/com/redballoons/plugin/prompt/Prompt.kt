@@ -1,7 +1,7 @@
 package com.redballoons.plugin.prompt
 
 import com.intellij.openapi.project.Project
-import com.redballoons.plugin.services.SelectionContext
+import com.redballoons.plugin.model.SelectionContext
 import com.redballoons.plugin.settings.RedBalloonsSettings
 
 object Prompt {

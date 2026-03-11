@@ -19,11 +19,11 @@ import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.ui.JBColor
+import com.redballoons.plugin.model.SelectionContext
 import com.redballoons.plugin.ops.OverRange
 import com.redballoons.plugin.prompt.ContextData
 import com.redballoons.plugin.prompt.Prompt
 import com.redballoons.plugin.services.OpencodeService
-import com.redballoons.plugin.services.SelectionContext
 import com.redballoons.plugin.ui.ProgressInlayRenderer
 import com.redballoons.plugin.ui.PromptPopup
 import java.awt.Color

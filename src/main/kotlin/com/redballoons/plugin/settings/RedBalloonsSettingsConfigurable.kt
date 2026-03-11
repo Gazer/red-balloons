@@ -18,8 +18,6 @@ class RedBalloonsSettingsConfigurable : Configurable {
 
     private val cliPathField = JBTextField()
     private val modelField = ComboBox<String>()
-    private val selectionPromptField = JBTextField()
-    private val searchPromptField = JBTextField()
 
     override fun getDisplayName(): String = "Opencode AI"
 
@@ -40,28 +38,18 @@ class RedBalloonsSettingsConfigurable : Configurable {
                         .comment("Model to use (leave empty for default). Examples: claude-3-5-sonnet, gemini-2.0-flash")
                 }
             }
-            group("Prompts") {
-                row("Selection Mode Prompt:") {
-                    cell(selectionPromptField)
-                        .columns(COLUMNS_LARGE)
-                        .comment("System prompt for Selection Mode (code transformation)")
-                }
-                row("Search Mode Prompt:") {
-                    cell(searchPromptField)
-                        .columns(COLUMNS_LARGE)
-                        .comment("System prompt for Search Mode")
-                }
-            }
             group("Keyboard Shortcuts") {
                 row {
-                    comment("""
+                    comment(
+                        """
                         <b>Selection Mode:</b> Command+Shift+; (modify selected code)<br>
                         <b>Vibe Mode:</b> Command+Shift+' (AI modifies project freely)<br>
                         <b>Search Mode:</b> Command+Shift+/ (AI-powered search)<br>
                         <b>Kill Switch:</b> Command+Shift+Escape (stop current process)<br>
                         <br>
                         <i>Tip: You can also access these from Tools → Opencode AI menu</i>
-                    """.trimIndent())
+                    """.trimIndent()
+                    )
                 }
             }
         }
@@ -71,23 +59,17 @@ class RedBalloonsSettingsConfigurable : Configurable {
     override fun isModified(): Boolean {
         val selectedModel = modelField.selectedItem as? String ?: ""
         return cliPathField.text != settings.opencodeCliPath ||
-                selectedModel != settings.modelName ||
-                selectionPromptField.text != settings.selectionModeSystemPrompt ||
-                searchPromptField.text != settings.searchModeSystemPrompt
+                selectedModel != settings.modelName
     }
 
     override fun apply() {
         settings.opencodeCliPath = cliPathField.text
         settings.modelName = modelField.selectedItem as? String ?: ""
-        settings.selectionModeSystemPrompt = selectionPromptField.text
-        settings.searchModeSystemPrompt = searchPromptField.text
     }
 
     override fun reset() {
         cliPathField.text = settings.opencodeCliPath
         modelField.selectedItem = settings.modelName
-        selectionPromptField.text = settings.selectionModeSystemPrompt
-        searchPromptField.text = settings.searchModeSystemPrompt
     }
 
     override fun disposeUIResources() {

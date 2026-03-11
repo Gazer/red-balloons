@@ -34,27 +34,28 @@ class VibeModeAction : AnAction() {
     private fun executeVibeMode(e: AnActionEvent, prompt: String) {
         val project = e.project ?: return
 
-        val service = OpencodeService.getInstance()
-
-        service.execute(
-            project = project,
-            prompt = prompt,
-            mode = OpencodeService.ExecutionMode.VIBE,
-            workingDirectory = project.basePath
-        ) { result ->
-            // Refresh the VFS so IDE detects disk changes
-            VirtualFileManager.getInstance().asyncRefresh {
-                if (!result.success) {
-                    val errorMsg = result.error.ifBlank { "Vibe mode completed with errors" }
-                    Messages.showErrorDialog(project, errorMsg, "Opencode Error")
-                } else {
-                    // Optionally show a success notification
-                    JBPopupFactory.getInstance()
-                        .createMessage("Vibe mode completed!")
-                        .showInFocusCenter()
-                }
-            }
-        }
+        // TODO bring back vibe
+//        val service = OpencodeService.getInstance()
+//
+//        service.execute(
+//            project = project,
+//            prompt = prompt,
+//            mode = OpencodeService.ExecutionMode.VIBE,
+//            workingDirectory = project.basePath
+//        ) { result ->
+//            // Refresh the VFS so IDE detects disk changes
+//            VirtualFileManager.getInstance().asyncRefresh {
+//                if (!result.success) {
+//                    val errorMsg = result.error.ifBlank { "Vibe mode completed with errors" }
+//                    Messages.showErrorDialog(project, errorMsg, "Opencode Error")
+//                } else {
+//                    // Optionally show a success notification
+//                    JBPopupFactory.getInstance()
+//                        .createMessage("Vibe mode completed!")
+//                        .showInFocusCenter()
+//                }
+//            }
+//        }
     }
 
     override fun update(e: AnActionEvent) {
