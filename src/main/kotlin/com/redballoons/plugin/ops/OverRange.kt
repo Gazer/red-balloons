@@ -1,9 +1,9 @@
 package com.redballoons.plugin.ops
 
+import com.redballoons.plugin.model.ParsedOutput
 import com.redballoons.plugin.prompt.Context
 import com.redballoons.plugin.prompt.ContextData
 import com.redballoons.plugin.prompt.PromptStrings
-import com.redballoons.plugin.services.ParsedOutput
 
 object OverRange {
     operator fun invoke(context: Context, cb: () -> Unit) {
