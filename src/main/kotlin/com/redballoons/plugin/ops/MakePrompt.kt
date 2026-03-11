@@ -1,10 +1,11 @@
 package com.redballoons.plugin.ops
 
-import com.redballoons.plugin.prompt.Prompt
+import com.redballoons.plugin.prompt.Context
+import com.redballoons.plugin.prompt.PromptStrings
 
 object MakePrompt {
-    operator fun invoke(userPrompt: String, basePrompt: String): String {
-        val fullPrompt = Prompt.prompt(userPrompt, basePrompt)
+    operator fun invoke(context: Context, basePrompt: String): String {
+        val fullPrompt = PromptStrings.prompt(context.userPrompt, basePrompt)
 
         // TODO: Refs and additional rules
 

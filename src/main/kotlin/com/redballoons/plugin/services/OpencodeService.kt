@@ -13,8 +13,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Key
-import com.redballoons.plugin.ops.MakePrompt
-import com.redballoons.plugin.prompt.Prompt
+import com.redballoons.plugin.prompt.Context
 import com.redballoons.plugin.settings.RedBalloonsSettings
 import java.io.File
 import java.io.FileWriter
@@ -106,138 +105,6 @@ class OpencodeService {
         SELECTION,
         VIBE,
         SEARCH
-    }
-
-    /**
-     * Execute Selection Mode with full context (like 99 plugin)
-     */
-    fun executeSelection(
-        project: Project,
-        userPrompt: String,
-        context: SelectionContext,
-        workingDirectory: String?,
-        onComplete: (ExecutionResult) -> Unit,
-    ) {
-        val settings = RedBalloonsSettings.getInstance()
-        val workDir = workingDirectory ?: project.basePath ?: "."
-        val tempOutputFile = getTempOutputFile(workDir)
-
-        // Clear the temp file before starting
-        tempOutputFile.delete()
-
-        ProgressManager.getInstance().run(object : Task.Backgroundable(
-            project,
-            "Selection Mode",
-            true
-        ) {
-            override fun run(indicator: ProgressIndicator) {
-                indicator.isIndeterminate = true
-                indicator.text = "Running opencode..."
-
-                log("=== START SELECTION MODE ===")
-                log("File: ${context.filePath}")
-                log("Lines: ${context.startLine}-${context.endLine}")
-                log("User prompt: $userPrompt")
-                log("Temp output file: ${tempOutputFile.absolutePath}")
-
-                try {
-                    val fullPrompt = buildSelectionPrompt(userPrompt, context, tempOutputFile)
-                    log("Full Prompt: $fullPrompt")
-
-                    val result = executeSync(
-                        fullPrompt = fullPrompt,
-                        workingDirectory = workDir,
-                        settings = settings,
-                        indicator = indicator
-                    )
-
-                    val tempOutput = if (tempOutputFile.exists()) {
-                        log("Reading temp file: ${tempOutputFile.absolutePath}")
-                        val content = tempOutputFile.readText().trim()
-                        log("Temp file content length: ${content.length}")
-                        log("Temp file raw content: $content")
-                        content
-                    } else {
-                        log("Temp file does not exist!")
-                        ""
-                    }
-
-                    // Parse imports and content
-                    val parsed = ParsedOutput.parse(tempOutput)
-                    log("Parsed imports: ${parsed.imports}")
-                    log("Parsed content length: ${parsed.content.length}")
-
-                    val finalResult = ExecutionResult(
-                        success = result.exitCode == 0 && parsed.content.isNotBlank(),
-                        output = parsed.content,
-                        error = result.error,
-                        exitCode = result.exitCode,
-                        imports = parsed.imports
-                    )
-
-                    log("=== EXECUTION COMPLETE ===")
-                    log("Success: ${finalResult.success}")
-                    log("Exit code: ${finalResult.exitCode}")
-                    log("Output length: ${finalResult.output.length}")
-
-                    ApplicationManager.getApplication().invokeLater {
-                        onComplete(finalResult)
-                    }
-                } catch (e: Exception) {
-                    log("=== EXCEPTION ===")
-                    log("Type: ${e.javaClass.simpleName}")
-                    log("Message: ${e.message}")
-                    LOG.error("Opencode execution failed", e)
-                    ApplicationManager.getApplication().invokeLater {
-                        onComplete(
-                            ExecutionResult(
-                                success = false,
-                                output = "",
-                                error = "${e.javaClass.simpleName}: ${e.message}",
-                                exitCode = -1
-                            )
-                        )
-                    }
-                }
-            }
-
-            override fun onCancel() {
-                killCurrentProcess()
-            }
-        })
-    }
-
-    private fun buildSelectionPrompt(userPrompt: String, context: SelectionContext, tempOutputFile: File): String {
-        val systemPrompt = Prompt.visualSelection(context)
-        val prompt = MakePrompt(userPrompt, systemPrompt)
-
-        return """
-            $prompt
-
-            <TEMP_FILE>
-            ${tempOutputFile.absolutePath}
-            </TEMP_FILE>
-
-            IMPORTANT INSTRUCTIONS:
-            - Write your response to TEMP_FILE (${tempOutputFile.absolutePath}) with TWO sections:
-              1. <IMPORTS> section: List any NEW imports needed that are NOT already in the file. One import per line. If no new imports needed, leave empty.
-              2. <CONTENT> section: The replacement code for the selection.
-
-            - Format of TEMP_FILE must be exactly:
-            <IMPORTS>
-            import com.example.NewClass
-            import com.example.AnotherClass
-            </IMPORTS>
-            <CONTENT>
-            // your replacement code here
-            </CONTENT>
-
-            - Never attempt to read TEMP_FILE, it is purely for output
-            - Previous contents can be written over without worry
-            - Write raw code only inside each section, no markdown, no explanations, no code fences
-            - Only include imports that are NOT already present in FILE_CONTAINING_SELECTION
-            - After writing TEMP_FILE once you should be done. End the session.
-        """.trimIndent()
     }
 
     /**
@@ -495,6 +362,123 @@ User search query: $userPrompt
     }
 
     fun isRunning(): Boolean = currentProcess.get()?.isProcessTerminated == false
+
+    fun makeRequest(query: String, context: Context, cb: (ExecutionResult) -> Unit) {
+        val command = buildCommand(query, context)
+        log("Command: ${command.commandLineString}")
+        log("Working dir: ${context.fullPath}")
+
+        runAsync(context, command) { result ->
+            cb(result)
+        }
+    }
+
+    private fun buildCommand(query: String, context: Context): GeneralCommandLine {
+        val settings = RedBalloonsSettings.getInstance()
+        return GeneralCommandLine().apply {
+            exePath = settings.opencodeCliPath
+            setWorkDirectory(File(context.data?.project?.basePath ?: "."))
+
+            addParameter("run")
+            addParameter("--agent")
+            addParameter("build")
+            addParameter("--model")
+            addParameter(context.model)
+            addParameter(query)
+        }
+    }
+
+    private fun runAsync(context: Context, command: GeneralCommandLine, onComplete: (ExecutionResult) -> Unit) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(
+            context.data?.project,
+            "Selection Mode",
+            true
+        ) {
+            override fun run(indicator: ProgressIndicator) {
+                indicator.isIndeterminate = true
+                indicator.text = "Running opencode..."
+
+                log("=== START EXECUTION ===")
+                log("Mode: ${context.operation}")
+
+                val processHandler = OSProcessHandler(command)
+                currentProcess.set(processHandler)
+                log("Process started, PID: ${processHandler.process.pid()}")
+
+                val outputBuilder = StringBuilder()
+                val errorBuilder = StringBuilder()
+
+                processHandler.addProcessListener(object : ProcessListener {
+                    override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
+                        val text = event.text
+                        if (outputType === ProcessOutputTypes.STDOUT) {
+                            outputBuilder.append(text)
+                            log("STDOUT: $text")
+                        } else if (outputType === ProcessOutputTypes.STDERR) {
+                            errorBuilder.append(text)
+                            log("STDERR: $text")
+                        }
+                    }
+
+                    override fun processTerminated(event: ProcessEvent) {
+                        log("Process terminated with exit code: ${event.exitCode}")
+                        currentProcess.set(null)
+                    }
+                })
+
+                processHandler.startNotify()
+
+                // Wait for process to complete, checking for cancellation
+                while (!processHandler.isProcessTerminated) {
+                    if (indicator.isCanceled) {
+                        processHandler.destroyProcess()
+
+                        log("Cancelled by user")
+                        val result = ExecutionResult(
+                            success = false,
+                            output = outputBuilder.toString(),
+                            error = "Cancelled by user",
+                            exitCode = -1
+                        )
+                        ApplicationManager.getApplication().invokeLater {
+                            onComplete(result)
+                        }
+                    }
+                    Thread.sleep(100)
+                }
+
+                val exitCode = processHandler.exitCode ?: -1
+
+                log("Done")
+                val result = if (exitCode == 0 && context.tmpFile.exists()) {
+
+                    val tempOutput = context.tmpFile.readText().trim()
+                    val parsed = ParsedOutput.parse(tempOutput)
+                    log("Parsed imports: ${parsed.imports}")
+                    log("Parsed content length: ${parsed.content.length}")
+
+                    // TODO: Maybe here we just need to return the file content and let each operation make the parsing
+                    ExecutionResult(
+                        success = parsed.content.isNotBlank(),
+                        output = parsed.content,
+                        error = errorBuilder.toString().trim(),
+                        exitCode = exitCode,
+                        imports = parsed.imports
+                    )
+                } else {
+                    ExecutionResult(
+                        success = exitCode == 0,
+                        output = outputBuilder.toString().trim(),
+                        error = errorBuilder.toString().trim(),
+                        exitCode = exitCode
+                    )
+                }
+                ApplicationManager.getApplication().invokeLater {
+                    onComplete(result)
+                }
+            }
+        })
+    }
 
     companion object {
         fun getInstance(): OpencodeService =

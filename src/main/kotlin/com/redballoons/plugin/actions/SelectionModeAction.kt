@@ -17,7 +17,10 @@ import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.ui.Messages
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiManager
+import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.ui.JBColor
+import com.redballoons.plugin.ops.OverRange
+import com.redballoons.plugin.prompt.Prompt
 import com.redballoons.plugin.services.OpencodeService
 import com.redballoons.plugin.services.SelectionContext
 import com.redballoons.plugin.ui.ProgressInlayRenderer
@@ -40,7 +43,7 @@ class SelectionModeAction : AnAction() {
         val highlighter: RangeHighlighter,
         val inlay: Inlay<*>,
         val renderer: ProgressInlayRenderer,
-        val rangeMarker: RangeMarker  // Tracks position even when document is edited
+        val rangeMarker: RangeMarker,  // Tracks position even when document is edited
     )
 
     override fun actionPerformed(e: AnActionEvent) {
@@ -99,32 +102,27 @@ class SelectionModeAction : AnAction() {
 
     private fun executeSelectionMode(
         e: AnActionEvent,
-        context: SelectionContext,
-        userPrompt: String
+        selectionContext: SelectionContext,
+        userPrompt: String,
     ) {
         val project = e.project ?: return
         val editor = e.getData(CommonDataKeys.EDITOR) ?: return
         val document = editor.document
+        val context = Prompt.visual(project, selectionContext)
 
-        // Add visual marker to show the AI is working on this range
-        val indicator = addPendingIndicator(editor, context.selectionStart, context.selectionEnd)
+        context.userPrompt = userPrompt
 
-        // Clear the selection so the user can continue working
+        val indicator = addPendingIndicator(
+            editor,
+            selectionContext.selectionStart,
+            selectionContext.selectionEnd,
+        )
         editor.selectionModel.removeSelection()
-
-        val service = OpencodeService.getInstance()
-
-        service.executeSelection(
-            project = project,
-            userPrompt = userPrompt,
-            context = context,
-            workingDirectory = project.basePath
-        ) { result ->
+        OverRange(context) { result ->
             removeVisualIndicators(editor, indicator)
 
             if (result.success && result.output.isNotBlank()) {
                 val rangeValid = indicator.rangeMarker.isValid
-
                 if (!rangeValid) {
                     indicator.rangeMarker.dispose()
                     Messages.showWarningDialog(
@@ -132,7 +130,7 @@ class SelectionModeAction : AnAction() {
                         "The selection range is no longer valid.\nThe document may have changed too much.",
                         "Range Invalid"
                     )
-                    return@executeSelection
+                    return@OverRange
                 }
 
                 // Apply changes in-memory using WriteCommandAction (enables Undo)
@@ -163,6 +161,7 @@ class SelectionModeAction : AnAction() {
                         val psiFile = PsiManager.getInstance(project).findFile(virtualFile)
                         if (psiFile != null) {
                             OptimizeImportsProcessor(project, psiFile).run()
+                            CodeStyleManager.getInstance(project).reformat(psiFile)
                         }
                     }
                 })
@@ -206,12 +205,18 @@ class SelectionModeAction : AnAction() {
         for (line in lines) {
             val trimmed = line.trim()
 
+            // TODO I dont like this approach, does IDE have something to help?
             if (trimmed.startsWith("package ")) {
                 foundPackage = true
                 packageEnd = currentPos + line.length + 1 // +1 for newline
             } else if (trimmed.startsWith("import ")) {
                 lastImportEnd = currentPos + line.length + 1
-            } else if (trimmed.isNotEmpty() && !trimmed.startsWith("//") && !trimmed.startsWith("/*") && !trimmed.startsWith("*")) {
+            } else if (
+                trimmed.isNotEmpty() &&
+                !trimmed.startsWith("//") &&
+                !trimmed.startsWith("/*") &&
+                !trimmed.startsWith("*")
+            ) {
                 // Found first non-import, non-comment line
                 if (lastImportEnd > 0) {
                     return lastImportEnd
@@ -221,7 +226,7 @@ class SelectionModeAction : AnAction() {
                 break
             }
 
-            currentPos += line.length + 1 // +1 for newline
+            currentPos += line.length + 1
         }
 
         return if (lastImportEnd > 0) lastImportEnd else if (foundPackage) packageEnd else 0
@@ -245,15 +250,14 @@ class SelectionModeAction : AnAction() {
         // Create a RangeMarker that survives document edits
         // This will automatically adjust startOffset/endOffset as the document changes
         val rangeMarker = document.createRangeMarker(startOffset, endOffset).apply {
-            isGreedyToLeft = false  // Don't expand if text is inserted at start
-            isGreedyToRight = false // Don't expand if text is inserted at end
+            isGreedyToLeft = false
+            isGreedyToRight = false
         }
 
-        // Create a subtle highlight background
         val attributes = TextAttributes().apply {
             backgroundColor = JBColor(
-                Color(255, 250, 205, 80),  // Light: pale yellow with transparency
-                Color(100, 80, 0, 60)       // Dark: muted gold with transparency
+                Color(255, 250, 205, 80),
+                Color(100, 80, 0, 60)
             )
             fontType = Font.ITALIC
         }
@@ -268,7 +272,6 @@ class SelectionModeAction : AnAction() {
             it.errorStripeTooltip = "AI is processing this code..."
         }
 
-        // Add inline progress indicator at the start of the selection
         val renderer = ProgressInlayRenderer(editor)
         val inlay = editor.inlayModel.addInlineElement(startOffset, true, renderer)!!
         renderer.startAnimation(inlay)
@@ -276,9 +279,6 @@ class SelectionModeAction : AnAction() {
         return PendingIndicator(highlighter, inlay, renderer, rangeMarker)
     }
 
-    /**
-     * Remove visual indicators (highlighter + inlay) but keep rangeMarker for position tracking.
-     */
     private fun removeVisualIndicators(editor: Editor, indicator: PendingIndicator) {
         ApplicationManager.getApplication().invokeLater {
             indicator.renderer.stopAnimation()

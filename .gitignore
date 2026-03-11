@@ -1,3 +1,4 @@
+tmp/
 .opencode/plugin_output.txt
 local.properties
 # Gradle

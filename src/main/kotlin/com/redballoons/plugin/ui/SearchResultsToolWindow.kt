@@ -23,7 +23,14 @@ import java.awt.event.KeyAdapter
 import java.awt.event.KeyEvent
 import java.awt.event.MouseAdapter
 import java.awt.event.MouseEvent
-import javax.swing.*
+import javax.swing.BorderFactory
+import javax.swing.BoxLayout
+import javax.swing.DefaultListModel
+import javax.swing.JList
+import javax.swing.JPanel
+import javax.swing.ListCellRenderer
+import javax.swing.ListSelectionModel
+import javax.swing.Timer
 
 class SearchResultsToolWindowFactory : ToolWindowFactory {
 
