@@ -3,10 +3,10 @@ package com.redballoons.plugin.ops
 import com.redballoons.plugin.prompt.Context
 import com.redballoons.plugin.prompt.ContextData
 import com.redballoons.plugin.prompt.PromptStrings
-import com.redballoons.plugin.services.OpencodeService
+import com.redballoons.plugin.services.ParsedOutput
 
 object OverRange {
-    operator fun invoke(context: Context, cb: (OpencodeService.ExecutionResult) -> Unit) {
+    operator fun invoke(context: Context, cb: () -> Unit) {
         val data = context.data as ContextData.Visual
         val systemPrompt = PromptStrings.visualSelection(data.selectionContext)
 
@@ -22,7 +22,13 @@ object OverRange {
 //        top_status:start()
 //        bottom_status:start()
         context.startRequest { result ->
-            cb(result)
+            val parsed = ParsedOutput.parse(result.output)
+
+            context.data = (context.data as ContextData.Visual).copy(
+                imports = parsed.imports,
+                content = parsed.content,
+            )
+            cb()
         }
     }
 }

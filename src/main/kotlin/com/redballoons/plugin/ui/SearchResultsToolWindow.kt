@@ -51,27 +51,6 @@ class SearchResultsToolWindowFactory : ToolWindowFactory {
  * - highlightLines: number of lines to highlight
  * - notes: description of why this result is relevant
  */
-data class SearchResult(
-    val filePath: String,
-    val lineNumber: Int,
-    val columnNumber: Int,
-    val highlightLines: Int,
-    val notes: String,
-) {
-    val fileName: String
-        get() = filePath.substringAfterLast("/")
-
-    val displayPath: String
-        get() {
-            // Show last 2-3 path components for context
-            val parts = filePath.split("/")
-            return if (parts.size > 3) {
-                ".../" + parts.takeLast(3).joinToString("/")
-            } else {
-                filePath
-            }
-        }
-}
 
 class SearchResultsPanel(private val project: Project) : JPanel(BorderLayout()) {
 
@@ -257,71 +236,6 @@ class SearchResultsPanel(private val project: Project) : JPanel(BorderLayout()) 
 
             panel.isOpaque = true
             return panel
-        }
-    }
-
-    companion object {
-        /**
-         * Parse search output in format:
-         * /path/to/file.ext:lnum:cnum,X,NOTES
-         *
-         * Where:
-         * - lnum = starting line number (1-based)
-         * - cnum = starting column number (1-based)
-         * - X = number of lines to highlight
-         * - NOTES = description
-         */
-        fun parseSearchOutput(output: String, projectBasePath: String): List<SearchResult> {
-            return output.lines()
-                .map { it.trim() }
-                .filter { it.isNotBlank() && it.contains(":") }
-                .mapNotNull { line ->
-                    try {
-                        // Format: /path/to/file:line:col,lines,notes
-                        // Need to handle paths with colons carefully (Windows paths, etc.)
-
-                        // Find the pattern: after the path, we have :number:number,number,text
-                        val regex = Regex("""^(.+):(\d+):(\d+),(\d+),(.*)$""")
-                        val match = regex.find(line)
-
-                        if (match != null) {
-                            val (filePath, lineStr, colStr, highlightStr, notes) = match.destructured
-
-                            val absolutePath = if (filePath.startsWith("/")) {
-                                filePath
-                            } else {
-                                "$projectBasePath/$filePath"
-                            }
-
-                            SearchResult(
-                                filePath = absolutePath,
-                                lineNumber = lineStr.toInt(),
-                                columnNumber = colStr.toInt(),
-                                highlightLines = highlightStr.toInt(),
-                                notes = notes.trim()
-                            )
-                        } else {
-                            // Fallback: try simpler format path:line:description
-                            val parts = line.split(":", limit = 3)
-                            if (parts.size >= 2) {
-                                val filePath = if (parts[0].startsWith("/")) {
-                                    parts[0]
-                                } else {
-                                    "$projectBasePath/${parts[0]}"
-                                }
-                                SearchResult(
-                                    filePath = filePath,
-                                    lineNumber = parts[1].toIntOrNull() ?: 1,
-                                    columnNumber = 1,
-                                    highlightLines = 1,
-                                    notes = if (parts.size > 2) parts[2].trim() else ""
-                                )
-                            } else null
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
-                }
         }
     }
 }

@@ -37,34 +37,6 @@ data class SelectionContext(
     val selectionEnd: Int,
 )
 
-/**
- * Parsed output from the temp file with imports and content sections
- */
-data class ParsedOutput(
-    val imports: List<String>,
-    val content: String,
-) {
-    companion object {
-        fun parse(raw: String): ParsedOutput {
-            val importsRegex = Regex("<IMPORTS>\\s*([\\s\\S]*?)\\s*</IMPORTS>", RegexOption.IGNORE_CASE)
-            val contentRegex = Regex("<CONTENT>\\s*([\\s\\S]*?)\\s*</CONTENT>", RegexOption.IGNORE_CASE)
-
-            val importsMatch = importsRegex.find(raw)
-            val contentMatch = contentRegex.find(raw)
-
-            val imports = importsMatch?.groupValues?.get(1)
-                ?.lines()
-                ?.map { it.trim() }
-                ?.filter { it.isNotBlank() }
-                ?: emptyList()
-
-            val content = contentMatch?.groupValues?.get(1)?.trim() ?: raw.trim()
-
-            return ParsedOutput(imports, content)
-        }
-    }
-}
-
 @Service
 class OpencodeService {
 
@@ -392,7 +364,7 @@ User search query: $userPrompt
     private fun runAsync(context: Context, command: GeneralCommandLine, onComplete: (ExecutionResult) -> Unit) {
         ProgressManager.getInstance().run(object : Task.Backgroundable(
             context.data?.project,
-            "Selection Mode",
+            "${context.operation.name} Mode",
             true
         ) {
             override fun run(indicator: ProgressIndicator) {
@@ -453,28 +425,12 @@ User search query: $userPrompt
                 log("Done")
                 val result = if (exitCode == 0 && context.tmpFile.exists()) {
                     val tempOutput = context.tmpFile.readText().trim()
-                    if (context.operation == Operation.VISUAL) {
-                        val parsed = ParsedOutput.parse(tempOutput)
-                        log("Parsed imports: ${parsed.imports}")
-                        log("Parsed content length: ${parsed.content.length}")
-
-                        // TODO: Maybe here we just need to return the file content and let each operation make the parsing
-                        ExecutionResult(
-                            success = parsed.content.isNotBlank(),
-                            output = parsed.content,
-                            error = errorBuilder.toString().trim(),
-                            exitCode = exitCode,
-                            imports = parsed.imports
-                        )
-                    } else {
-                        log("Plain output: $tempOutput")
-                        ExecutionResult(
-                            success = true,
-                            output = tempOutput,
-                            error = errorBuilder.toString().trim(),
-                            exitCode = exitCode
-                        )
-                    }
+                    ExecutionResult(
+                        success = true,
+                        output = tempOutput,
+                        error = errorBuilder.toString().trim(),
+                        exitCode = exitCode
+                    )
                 } else {
                     log("Using stdout: ${outputBuilder.toString().trim()}")
                     ExecutionResult(

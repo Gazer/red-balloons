@@ -6,6 +6,7 @@ import com.intellij.openapi.actionSystem.CommonDataKeys
 import com.intellij.openapi.ui.Messages
 import com.intellij.openapi.wm.ToolWindowManager
 import com.redballoons.plugin.ops.Search
+import com.redballoons.plugin.prompt.ContextData
 import com.redballoons.plugin.prompt.Prompt
 import com.redballoons.plugin.services.OpencodeService
 import com.redballoons.plugin.ui.PromptPopup
@@ -39,42 +40,24 @@ class SearchModeAction : AnAction() {
 
         context.userPrompt = userPrompt
 
-        Search(context) { result ->
-            if (result.success && result.output.isNotBlank()) {
-                val searchResults = SearchResultsPanel.parseSearchOutput(
-                    result.output,
-                    project.basePath ?: ""
-                )
-
-                if (searchResults.isEmpty()) {
-                    Messages.showInfoMessage(
-                        project,
-                        "No results found for: $userPrompt",
-                        "Search Results"
-                    )
-                    return@Search
-                }
-
-                val toolWindow = ToolWindowManager.getInstance(project)
-                    .getToolWindow("Red Balloons Search")
-
-                toolWindow?.let { tw ->
-                    tw.show {
-                        val content = tw.contentManager.getContent(0)
-                        val panel = content?.component as? SearchResultsPanel
-                        panel?.setResults(searchResults, userPrompt)
-                    }
-                }
-            } else if (!result.success) {
-                val errorMsg = result.error.ifBlank { "Search failed" }
-                Messages.showErrorDialog(project, errorMsg, "Opencode Search Error")
-            } else {
-                // Success but no output
+        Search(context) {
+            val searchData: ContextData.Search = context.data as ContextData.Search
+            if (searchData.quickFixItems.isEmpty()) {
                 Messages.showInfoMessage(
                     project,
                     "No results found for: $userPrompt",
                     "Search Results"
                 )
+            } else {
+                val toolWindow = ToolWindowManager.getInstance(project).getToolWindow("Red Balloons Search")
+
+                toolWindow?.let { tw ->
+                    tw.show {
+                        val content = tw.contentManager.getContent(0)
+                        val panel = content?.component as? SearchResultsPanel
+                        panel?.setResults(searchData.quickFixItems, userPrompt)
+                    }
+                }
             }
         }
     }

@@ -20,6 +20,7 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.ui.JBColor
 import com.redballoons.plugin.ops.OverRange
+import com.redballoons.plugin.prompt.ContextData
 import com.redballoons.plugin.prompt.Prompt
 import com.redballoons.plugin.services.OpencodeService
 import com.redballoons.plugin.services.SelectionContext
@@ -118,10 +119,11 @@ class SelectionModeAction : AnAction() {
             selectionContext.selectionEnd,
         )
         editor.selectionModel.removeSelection()
-        OverRange(context) { result ->
+        OverRange(context) {
             removeVisualIndicators(editor, indicator)
 
-            if (result.success && result.output.isNotBlank()) {
+            val visualData = context.data as ContextData.Visual
+            if (visualData.content.isNotBlank()) {
                 val rangeValid = indicator.rangeMarker.isValid
                 if (!rangeValid) {
                     indicator.rangeMarker.dispose()
@@ -136,8 +138,8 @@ class SelectionModeAction : AnAction() {
                 // Apply changes in-memory using WriteCommandAction (enables Undo)
                 WriteCommandAction.runWriteCommandAction(project, "Opencode: Selection Mode", null, {
                     // First, add any new imports at the top of the file
-                    if (result.imports.isNotEmpty()) {
-                        val importsText = result.imports.joinToString("\n") + "\n"
+                    if (visualData.imports.isNotEmpty()) {
+                        val importsText = visualData.imports.joinToString("\n") + "\n"
 
                         // Find where to insert imports (after package declaration, before first non-import)
                         val insertPosition = findImportInsertPosition(document.text)
@@ -148,7 +150,7 @@ class SelectionModeAction : AnAction() {
                     // RangeMarker auto-adjusts for any prior document changes (like import insertion)
                     val currentStart = indicator.rangeMarker.startOffset
                     val currentEnd = indicator.rangeMarker.endOffset
-                    document.replaceString(currentStart, currentEnd, result.output)
+                    document.replaceString(currentStart, currentEnd, visualData.content)
                     // Now dispose the rangeMarker since we're done
                     indicator.rangeMarker.dispose()
 
@@ -165,22 +167,7 @@ class SelectionModeAction : AnAction() {
                         }
                     }
                 })
-            } else if (!result.success) {
-                indicator.rangeMarker.dispose()
-                val errorMsg = buildString {
-                    append("Exit code: ${result.exitCode}\n\n")
-                    if (result.error.isNotBlank()) {
-                        append("Error: ${result.error}\n\n")
-                    }
-                    if (result.output.isNotBlank()) {
-                        append("Output: ${result.output}")
-                    }
-                    if (result.error.isBlank() && result.output.isBlank()) {
-                        append("No output received from opencode CLI")
-                    }
-                }
-                Messages.showErrorDialog(project, errorMsg, "Opencode Error")
-            } else if (result.success && result.output.isBlank()) {
+            } else {
                 indicator.rangeMarker.dispose()
                 Messages.showWarningDialog(
                     project,

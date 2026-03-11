@@ -1,6 +1,7 @@
 package com.redballoons.plugin.prompt
 
 import com.intellij.openapi.project.Project
+import com.redballoons.plugin.model.SearchResult
 import com.redballoons.plugin.services.OpencodeService
 import com.redballoons.plugin.services.SelectionContext
 import java.io.File
@@ -13,11 +14,13 @@ sealed class ContextData(open val project: Project) {
         val fullPath: String,
         val fileType: String,
         val selectionContext: SelectionContext,
+        val imports: List<String> = emptyList(),
+        val content: String = "",
     ) : ContextData(project)
 
     data class Search(
         override val project: Project,
-        val quickFixItems: List<String> = emptyList(),
+        val quickFixItems: List<SearchResult> = emptyList(),
         val response: String = "",
     ) : ContextData(project)
 
