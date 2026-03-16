@@ -13,6 +13,7 @@ import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.util.Key
 import com.redballoons.plugin.prompt.Context
+import com.redballoons.plugin.prompt.ContextState
 import com.redballoons.plugin.settings.RedBalloonsSettings
 import java.io.File
 import java.io.FileWriter
@@ -189,6 +190,7 @@ class OpencodeService {
                 while (!processHandler.waitFor(100)) {
                     if (indicator.isCanceled) {
                         log("Cancelled by user")
+                        context.state = ContextState.CANCELLED
                         processHandler.destroyProcess()
 
                         val result = ExecutionResult(
@@ -208,6 +210,7 @@ class OpencodeService {
                 log("Done with exit code: $exitCode")
 
                 val result = if (exitCode == 0 && context.tmpFile.exists()) {
+                    context.state = ContextState.DONE
                     val tempOutput = context.tmpFile.readText().trim()
                     ExecutionResult(
                         success = true,
@@ -217,6 +220,7 @@ class OpencodeService {
                     )
                 } else {
                     log("Using stdout: ${outputBuilder.toString().trim()}")
+                    context.state = if (exitCode == 0) ContextState.DONE else ContextState.ERROR
                     ExecutionResult(
                         success = exitCode == 0,
                         output = outputBuilder.toString().trim(),

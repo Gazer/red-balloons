@@ -38,6 +38,14 @@ enum class Operation {
     UNKNOWN
 }
 
+enum class ContextState {
+    READY,
+    REQUESTING,
+    CANCELLED,
+    DONE,
+    ERROR
+}
+
 class Context(
     model: String? = null,
     val workingDirectory: String,
@@ -45,7 +53,7 @@ class Context(
 ) {
     private val items: MutableList<String> = mutableListOf()
 
-    var state: String = "ready"
+    var state: ContextState = ContextState.READY
     var operation: Operation = Operation.UNKNOWN
     var userPrompt: String = ""
     val cleanUps: MutableList<() -> Unit> = mutableListOf()
@@ -68,12 +76,16 @@ class Context(
     }
 
     fun startRequest(cb: (OpencodeService.ExecutionResult) -> Unit) {
+        if (state != ContextState.READY) {
+            return
+        }
         // TODO: Validations?
         finalize()
 
         val prompt = concatenated
         val provider = OpencodeService.getInstance()
 
+        state = ContextState.REQUESTING
         provider.makeRequest(prompt, this) { result ->
             cb(result)
         }
