@@ -1,0 +1,81 @@
+<idea-plugin>
+    <id>com.redballons.plugin</id>
+    <name>Red Balloons AI Assistant</name>
+    <vendor email="ricardo.markiewicz+rb@gmail.com" url="https://gazer.github.io">Ricardo Markiewicz</vendor>
+
+    <description><![CDATA[
+    A minimalist AI coding assistant that integrates the opencode CLI with IntelliJ-based IDEs.
+    <br><br>
+    <b>Features:</b>
+    <ul>
+        <li><b>Selection Mode:</b> Modify only the selected code (in-memory, supports Undo)</li>
+        <li><b>Vibe Mode:</b> Let AI freely modify your project</li>
+        <li><b>Search Mode:</b> AI-powered semantic search across your codebase</li>
+    </ul>
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Settings -->
+        <applicationConfigurable displayName="Red Balloons"
+            id="com.redballoons.plugin.settings.RedBalloonsSettingsConfigurable"
+            instance="com.redballoons.plugin.settings.RedBalloonsSettingsConfigurable" parentId="tools" />
+
+        <applicationService serviceImplementation="com.redballoons.plugin.settings.RedBalloonsSettings"
+            serviceInterface="com.redballoons.plugin.settings.RedBalloonsSettings" />
+
+        <applicationService serviceImplementation="com.redballoons.plugin.services.OpencodeService"
+            serviceInterface="com.redballoons.plugin.services.OpencodeService" />
+
+        <applicationService serviceImplementation="com.redballoons.plugin.services.SessionManager"
+            serviceInterface="com.redballoons.plugin.services.SessionManager" />
+
+        <typedHandler implementation="com.redballoons.plugin.handlers.ReviewTypedHandler" />
+
+        <!-- Search Results Tool Window -->
+        <toolWindow anchor="bottom" factoryClass="com.redballoons.plugin.ui.SearchResultsToolWindowFactory"
+            icon="AllIcons.Actions.Find" id="Red Balloons Results" secondary="true" />
+    </extensions>
+
+    <actions>
+        <group description="Red Balloons actions" id="RedBalloonsActionGroup" popup="true" text="Red Balloons">
+            <action class="com.redballoons.plugin.actions.SelectionModeAction" description="Modify selected code with AI"
+                id="RedBalloons.SelectionMode" text="Selection Mode">
+                <keyboard-shortcut first-keystroke="ctrl shift SEMICOLON" keymap="$default" />
+            </action>
+
+            <action class="com.redballoons.plugin.actions.VibeModeAction" description="Let AI freely modify your project" id="RedBalloons.VibeMode"
+                text="Vibe Mode">
+                <keyboard-shortcut first-keystroke="ctrl shift QUOTE" keymap="$default" />
+            </action>
+
+            <action class="com.redballoons.plugin.actions.SearchModeAction" description="AI-powered semantic search" id="RedBalloons.SearchMode"
+                text="Search Mode">
+                <keyboard-shortcut first-keystroke="ctrl shift S" keymap="$default" />
+            </action>
+
+            <separator />
+            <action class="com.redballoons.plugin.actions.AcceptAction" id="RedBalloons.Accept" text="Accept AI Changes">
+                <keyboard-shortcut first-keystroke="meta Y" keymap="Mac OS X" />
+                <keyboard-shortcut first-keystroke="control Y" keymap="$default" />
+            </action>
+            <action class="com.redballoons.plugin.actions.RejectAction" id="RedBalloons.Reject" text="Reject AI Changes">
+                <keyboard-shortcut first-keystroke="meta N" keymap="Mac OS X" />
+                <keyboard-shortcut first-keystroke="control N" keymap="$default" />
+            </action>
+            <action class="com.redballoons.plugin.actions.RefineAction" id="RedBalloons.Refine" text="Refine AI Prompt">
+                <keyboard-shortcut first-keystroke="meta R" keymap="Mac OS X" />
+                <keyboard-shortcut first-keystroke="control R" keymap="$default" />
+            </action>
+
+            <separator />
+            <action class="com.redballoons.plugin.actions.KillSwitchAction" description="Stop the current process" id="RedBalloons.KillSwitch"
+                text="Stop Execution">
+                <keyboard-shortcut first-keystroke="ctrl shift ESCAPE" keymap="$default" />
+            </action>
+
+            <add-to-group anchor="last" group-id="ToolsMenu" />
+        </group>
+    </actions>
+</idea-plugin>
