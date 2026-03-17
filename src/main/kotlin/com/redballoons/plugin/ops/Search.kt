@@ -9,8 +9,9 @@ object Search {
     operator fun invoke(context: Context, cb: () -> Unit) {
         val systemPrompt = PromptStrings.semanticSearch()
 
-        val prompt = MakePrompt(context, systemPrompt)
+        val (prompt, refs) = MakePrompt(context, systemPrompt)
         context.addPromptContent(prompt)
+        context.addReferences(refs)
 
         context.startRequest { result ->
             val searchResults = SearchResult.parseSearchOutput(

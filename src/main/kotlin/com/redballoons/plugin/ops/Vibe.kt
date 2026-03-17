@@ -7,10 +7,10 @@ import com.redballoons.plugin.prompt.PromptStrings
 
 object Vibe {
     operator fun invoke(context: Context, cb: () -> Unit) {
-        val prompt = MakePrompt(context, PromptStrings.vibe())
+        val (prompt, refs) = MakePrompt(context, PromptStrings.vibe())
 
         context.addPromptContent(prompt)
-        //context:add_references(refs)
+        context.addReferences(refs)
         // TODO: cleanup is the function that remove the visual indicator for
         // the seleccion
         //context:add_clean_up(clean_up)

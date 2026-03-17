@@ -29,7 +29,7 @@ class OpencodeService {
     private val currentProcess: AtomicReference<OSProcessHandler?> = AtomicReference(null)
     private val logFile = File("/tmp/oc.txt")
 
-    private fun log(message: String) {
+    fun log(message: String) {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
         val line = "[$timestamp] $message"
         LOG.info(line)

@@ -19,7 +19,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
     private val cliPathField = JBTextField()
     private val modelField = ComboBox<String>()
 
-    override fun getDisplayName(): String = "Opencode AI"
+    override fun getDisplayName(): String = "Red Balloons"
 
     override fun createComponent(): JComponent {
         // TODO: Should we do this in background?

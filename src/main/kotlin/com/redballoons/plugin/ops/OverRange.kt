@@ -10,10 +10,10 @@ object OverRange {
         val data = context.data as ContextData.Visual
         val systemPrompt = PromptStrings.visualSelection(data.selectionContext)
 
-        val prompt = MakePrompt(context, systemPrompt)
+        val (prompt, refs) = MakePrompt(context, systemPrompt)
 
         context.addPromptContent(prompt)
-        //context:add_references(refs)
+        context.addReferences(refs)
         // TODO: cleanup is the function that remove the visual indicator for
         // the seleccion
         //context:add_clean_up(clean_up)

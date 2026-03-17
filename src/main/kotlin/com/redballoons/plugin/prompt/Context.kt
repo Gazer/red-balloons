@@ -51,15 +51,13 @@ class Context(
     val workingDirectory: String,
     val xid: String = UUID.randomUUID().toString(),
 ) {
-    private val items: MutableList<String> = mutableListOf()
-
     var state: ContextState = ContextState.READY
     var operation: Operation = Operation.UNKNOWN
     var userPrompt: String = ""
     val cleanUps: MutableList<() -> Unit> = mutableListOf()
     val mdFileNames: MutableList<String> = mutableListOf()
     var model: String = model ?: ""
-    val agentContext: MutableMap<String, Any> = mutableMapOf()
+    val agentContext: MutableList<String> = mutableListOf()
     val tmpDir = File(workingDirectory, "tmp").also {
         it.mkdir()
     }
@@ -68,11 +66,8 @@ class Context(
     val startedAt: Instant = Instant.now()
     var data: ContextData? = null
 
-    val concatenated: String
-        get() = items.joinToString("\n")
-
     fun addPromptContent(prompt: String) {
-        items.add(prompt)
+        agentContext.add(prompt)
     }
 
     fun startRequest(cb: (OpencodeService.ExecutionResult) -> Unit) {
@@ -82,7 +77,7 @@ class Context(
         // TODO: Validations?
         finalize()
 
-        val prompt = concatenated
+        val prompt = agentContext.joinToString("\n")
         val provider = OpencodeService.getInstance()
 
         state = ContextState.REQUESTING
@@ -95,14 +90,22 @@ class Context(
         if (data is ContextData.Visual) {
             val visualData = data as ContextData.Visual
             val loc = PromptStrings.getFileLocation(visualData.fullPath, visualData.selectionContext)
-            items.add(loc)
-            items.add(PromptStrings.getRangeText((data as ContextData.Visual).selectionContext))
+            agentContext.add(loc)
+            agentContext.add(PromptStrings.getRangeText((data as ContextData.Visual).selectionContext))
         }
-        items.add(
+        agentContext.add(
             PromptStrings.getTempfileLocation(tmpFile)
         )
         if (operation == Operation.VISUAL || operation == Operation.SEARCH || operation == Operation.TUTORIAL) {
-            items.add(PromptStrings.getOnlyTempfileChange())
+            agentContext.add(PromptStrings.getOnlyTempfileChange())
+        }
+    }
+
+    fun addReferences(refs: List<Map<String, String>>) {
+        for (ref in refs) {
+            ref["content"]?.let { content ->
+                agentContext.add(content)
+            }
         }
     }
 }
