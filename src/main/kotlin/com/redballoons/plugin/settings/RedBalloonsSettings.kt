@@ -14,6 +14,22 @@ class RedBalloonsSettings : PersistentStateComponent<RedBalloonsSettings> {
     var opencodeCliPath: String = "opencode"
     var modelName: String = ""
 
+    // Extension Files Provider settings
+    var extensionFilesProviderEnabled: Boolean = true
+    var extensionFilesProviderMaxFiles: Int = 5000
+    var extensionFilesProviderExcludePatterns: MutableList<String> = mutableListOf(
+        ".env",
+        ".env.*",
+        "node_modules",
+        ".git",
+        "dist",
+        "build",
+        "*.log",
+        ".DS_Store",
+        "tmp",
+        ".cursor"
+    )
+
     override fun getState(): RedBalloonsSettings = this
 
     override fun loadState(state: RedBalloonsSettings) {
