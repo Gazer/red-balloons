@@ -1,5 +1,7 @@
 package com.redballoons.plugin.settings
 
+import com.intellij.icons.AllIcons
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.options.Configurable
 import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.ui.DialogPanel
@@ -14,6 +16,7 @@ import com.intellij.ui.dsl.builder.panel
 import com.intellij.ui.table.JBTable
 import com.redballoons.plugin.services.OpencodeService
 import java.awt.Dimension
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.JSpinner
 import javax.swing.SpinnerNumberModel
@@ -26,6 +29,13 @@ class RedBalloonsSettingsConfigurable : Configurable {
 
     private val cliPathField = JBTextField()
     private val modelField = ComboBox<String>()
+    private val refreshModelsButton = JButton(AllIcons.Actions.Refresh).apply {
+        toolTipText = "Refresh models list"
+        isEnabled = true
+        addActionListener {
+            loadModels(refresh = true)
+        }
+    }
 
     // Extension Files Provider fields
     private val extensionFilesProviderEnabledCheckbox = JBCheckBox("Enable Extension Files Provider")
@@ -56,9 +66,6 @@ class RedBalloonsSettingsConfigurable : Configurable {
     override fun getDisplayName(): String = "Red Balloons"
 
     override fun createComponent(): JComponent {
-        // TODO: Should we do this in background?
-        val models = OpencodeService.getInstance().getModels()
-        models.forEach { modelField.addItem(it) }
         panel = panel {
             group("General") {
                 row("Opencode CLI Path:") {
@@ -69,6 +76,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
                 row("Model:") {
                     cell(modelField)
                         .columns(COLUMNS_MEDIUM)
+                    cell(refreshModelsButton)
                         .comment("Model to use (leave empty for default)")
                 }
             }
@@ -113,17 +121,6 @@ class RedBalloonsSettingsConfigurable : Configurable {
                 currentExcludePatterns != settings.extensionFilesProviderExcludePatterns
     }
 
-    private fun getExcludePatternsFromTable(): List<String> {
-        val patterns = mutableListOf<String>()
-        for (i in 0 until excludePatternsTableModel.rowCount) {
-            val pattern = (excludePatternsTableModel.getValueAt(i, 0) as? String)?.trim() ?: ""
-            if (pattern.isNotEmpty()) {
-                patterns.add(pattern)
-            }
-        }
-        return patterns
-    }
-
     override fun apply() {
         settings.opencodeCliPath = cliPathField.text
         settings.modelName = modelField.selectedItem as? String ?: ""
@@ -141,9 +138,40 @@ class RedBalloonsSettingsConfigurable : Configurable {
         settings.extensionFilesProviderExcludePatterns.forEach { pattern ->
             excludePatternsTableModel.addRow(arrayOf(pattern))
         }
+        loadModels(false)
     }
 
     override fun disposeUIResources() {
         panel = null
+    }
+
+    private fun loadModels(refresh: Boolean = false) {
+        refreshModelsButton.isEnabled = false
+        val currentSelection = modelField.selectedItem as? String
+        ApplicationManager.getApplication().executeOnPooledThread {
+            val models = OpencodeService.getInstance().getModels(refresh)
+            ApplicationManager.getApplication().invokeLater {
+                modelField.removeAllItems()
+                models.forEach { modelField.addItem(it) }
+
+                if (currentSelection != null && models.contains(currentSelection)) {
+                    modelField.selectedItem = currentSelection
+                } else if (settings.modelName.isNotEmpty() && models.contains(settings.modelName)) {
+                    modelField.selectedItem = settings.modelName
+                }
+                refreshModelsButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun getExcludePatternsFromTable(): List<String> {
+        val patterns = mutableListOf<String>()
+        for (i in 0 until excludePatternsTableModel.rowCount) {
+            val pattern = (excludePatternsTableModel.getValueAt(i, 0) as? String)?.trim() ?: ""
+            if (pattern.isNotEmpty()) {
+                patterns.add(pattern)
+            }
+        }
+        return patterns
     }
 }

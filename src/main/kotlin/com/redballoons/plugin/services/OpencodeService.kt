@@ -28,6 +28,7 @@ class OpencodeService {
     private val LOG = Logger.getInstance(OpencodeService::class.java)
     private val currentProcess: AtomicReference<OSProcessHandler?> = AtomicReference(null)
     private val logFile = File("/tmp/oc.txt")
+    private var modelsCache: List<String>? = null
 
     fun log(message: String) {
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
@@ -77,8 +78,15 @@ class OpencodeService {
         }
     }
 
-    fun getModels(): List<String> {
+    fun getModels(refresh: Boolean = false): List<String> {
         val settings = RedBalloonsSettings.getInstance()
+
+        modelsCache?.let { cache ->
+            if (!refresh) {
+                log("Returning cached models (${cache.size} models)")
+                return cache
+            }
+        }
 
         try {
             val commandLine = GeneralCommandLine().apply {
@@ -109,12 +117,17 @@ class OpencodeService {
             val output = outputBuilder.toString()
             log("Models output: $output")
 
-            return output.lines()
+            val models = output.lines()
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
+
+            modelsCache = models
+            log("Models cached (${models.size} models)")
+
+            return models
         } catch (e: Exception) {
             LOG.error("Failed to get models", e)
-            return emptyList()
+            return modelsCache ?: emptyList()
         }
     }
 
