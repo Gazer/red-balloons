@@ -41,23 +41,11 @@ class OpencodeService {
         }
     }
 
-    /**
-     * Get the temp output file path inside the project's .opencode directory
-     */
-    private fun getTempOutputFile(workingDirectory: String): File {
-        val opencodeDir = File(workingDirectory, ".opencode")
-        if (!opencodeDir.exists()) {
-            opencodeDir.mkdirs()
-        }
-        return File(opencodeDir, "plugin_output.txt")
-    }
-
     data class ExecutionResult(
         val success: Boolean,
         val output: String,
         val error: String,
         val exitCode: Int,
-        val imports: List<String> = emptyList(),
     )
 
     enum class ExecutionMode {
