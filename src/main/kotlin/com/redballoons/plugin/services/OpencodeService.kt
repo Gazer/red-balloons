@@ -12,6 +12,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.util.Key
+import com.redballoons.plugin.model.ExecutionResult
 import com.redballoons.plugin.prompt.Context
 import com.redballoons.plugin.prompt.ContextState
 import com.redballoons.plugin.settings.RedBalloonsSettings
@@ -20,14 +21,13 @@ import java.io.FileWriter
 import java.io.PrintWriter
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.util.concurrent.atomic.AtomicReference
 
 @Service
 class OpencodeService {
 
     private val LOG = Logger.getInstance(OpencodeService::class.java)
-    private val currentProcess: AtomicReference<OSProcessHandler?> = AtomicReference(null)
     private val logFile = File("/tmp/oc.txt")
+    private var currentContext: Context? = null
     private var modelsCache: List<String>? = null
 
     fun log(message: String) {
@@ -41,13 +41,6 @@ class OpencodeService {
         }
     }
 
-    data class ExecutionResult(
-        val success: Boolean,
-        val output: String,
-        val error: String,
-        val exitCode: Int,
-    )
-
     enum class ExecutionMode {
         SELECTION,
         VIBE,
@@ -55,15 +48,16 @@ class OpencodeService {
     }
 
     fun killCurrentProcess(): Boolean {
-        val process = currentProcess.get()
-        return if (process != null && !process.isProcessTerminated) {
-            process.destroyProcess()
-            currentProcess.set(null)
-            LOG.info("Process killed by user")
-            true
-        } else {
-            false
-        }
+        return currentContext?.process?.let { process ->
+            if (!process.isProcessTerminated) {
+                process.destroyProcess()
+                currentContext = null
+                LOG.info("Process killed by user")
+                true
+            } else {
+                false
+            }
+        } ?: false
     }
 
     fun getModels(refresh: Boolean = false): List<String> {
@@ -119,8 +113,7 @@ class OpencodeService {
         }
     }
 
-    fun isRunning(): Boolean = currentProcess.get()?.isProcessTerminated == false
-
+    fun isRunning(): Boolean = currentContext?.process?.let { !it.isProcessTerminated } ?: false
     fun makeRequest(query: String, context: Context, cb: (ExecutionResult) -> Unit) {
         val command = buildCommand(query, context)
         log("Command: ${command.commandLineString}")
@@ -161,7 +154,7 @@ class OpencodeService {
 
                 val processHandler = OSProcessHandler(command)
                 processHandler.processInput.close()
-                currentProcess.set(processHandler)
+                context.process = processHandler
 
                 log("Process started, PID: ${processHandler.process.pid()}")
 
@@ -182,7 +175,6 @@ class OpencodeService {
 
                     override fun processTerminated(event: ProcessEvent) {
                         log("Process terminated with exit code: ${event.exitCode}")
-                        currentProcess.set(null)
                     }
                 })
 

@@ -1,6 +1,8 @@
 package com.redballoons.plugin.prompt
 
+import com.intellij.execution.process.OSProcessHandler
 import com.intellij.openapi.project.Project
+import com.redballoons.plugin.model.ExecutionResult
 import com.redballoons.plugin.model.SearchResult
 import com.redballoons.plugin.model.SelectionContext
 import com.redballoons.plugin.services.OpencodeService
@@ -65,12 +67,13 @@ class Context(
     val marks: MutableMap<String, Any> = mutableMapOf()
     val startedAt: Instant = Instant.now()
     var data: ContextData? = null
+    var process: OSProcessHandler? = null
 
     fun addPromptContent(prompt: String) {
         agentContext.add(prompt)
     }
 
-    fun startRequest(cb: (OpencodeService.ExecutionResult) -> Unit) {
+    fun startRequest(cb: (ExecutionResult) -> Unit) {
         if (state != ContextState.READY) {
             return
         }
