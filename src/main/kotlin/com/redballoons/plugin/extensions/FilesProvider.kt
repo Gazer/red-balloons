@@ -3,7 +3,7 @@ package com.redballoons.plugin.extensions
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.roots.ProjectFileIndex
+import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.openapi.vfs.newvfs.BulkFileListener
@@ -49,7 +49,7 @@ class FilesProvider(private val project: Project) : CompletionProvider {
                 if (result.size >= 20) break
 
                 val relativePath = getRelativePath(file, basePath)
-                val searchable = "$fileName $relativePath".lowercase()
+                val searchable = fileName.lowercase()
 
                 // Fuzzy match: each character in query must appear in order
                 var matchPos = 0
@@ -152,15 +152,24 @@ class FilesProvider(private val project: Project) : CompletionProvider {
     }
 
     private fun searchProjectFiles(): List<String> {
-        val result = mutableListOf<String>()
-        val fileIndex = ProjectFileIndex.getInstance(project)
+        val result = mutableSetOf<String>()
+        val fileIndex = ProjectRootManager.getInstance(project).fileIndex
         val settings = RedBalloonsSettings.getInstance()
         val excludePatterns = settings.extensionFilesProviderExcludePatterns
         val maxFiles = settings.extensionFilesProviderMaxFiles
-        val basePath = project.basePath ?: ""
 
         val matchers = excludePatterns.map { pattern ->
             FileSystems.getDefault().getPathMatcher("glob:$pattern")
+        }
+
+        // Collect all content roots from the project file index (handles modules and composite builds)
+        val allContentRoots = mutableSetOf<String>()
+        project.basePath?.let { allContentRoots.add(it) }
+
+        fileIndex.iterateContent { file ->
+            val contentRoot = fileIndex.getContentRootForFile(file)
+            contentRoot?.path?.let { allContentRoots.add(it) }
+            true
         }
 
         fileIndex.iterateContent { file ->
@@ -168,8 +177,13 @@ class FilesProvider(private val project: Project) : CompletionProvider {
                 return@iterateContent false
             }
 
-            val relativePath = if (file.path.startsWith(basePath)) {
-                file.path.removePrefix(basePath).removePrefix("/")
+            // Find the best matching content root for this file
+            val matchingRoot = allContentRoots
+                .filter { file.path.startsWith(it) }
+                .maxByOrNull { it.length } ?: ""
+
+            val relativePath = if (matchingRoot.isNotEmpty() && file.path.startsWith(matchingRoot)) {
+                file.path.removePrefix(matchingRoot).removePrefix("/")
             } else {
                 file.path
             }
