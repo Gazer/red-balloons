@@ -29,6 +29,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
 
     private val cliPathField = JBTextField()
     private val modelField = ComboBox<String>()
+    private val debugCheckbox = JBCheckBox("Enable debug logging")
     private val refreshModelsButton = JButton(AllIcons.Actions.Refresh).apply {
         toolTipText = "Refresh models list"
         isEnabled = true
@@ -79,6 +80,10 @@ class RedBalloonsSettingsConfigurable : Configurable {
                     cell(refreshModelsButton)
                         .comment("Model to use (leave empty for default)")
                 }
+                row {
+                    cell(debugCheckbox)
+                        .comment("Enables verbose logging for debugging purposes")
+                }
             }
             group("Extension Files Provider") {
                 row {
@@ -116,6 +121,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
         val currentExcludePatterns = getExcludePatternsFromTable()
         return cliPathField.text != settings.opencodeCliPath ||
                 selectedModel != settings.modelName ||
+                debugCheckbox.isSelected != settings.isDebugEnabled ||
                 extensionFilesProviderEnabledCheckbox.isSelected != settings.extensionFilesProviderEnabled ||
                 (extensionFilesProviderMaxFilesSpinner.value as Int) != settings.extensionFilesProviderMaxFiles ||
                 currentExcludePatterns != settings.extensionFilesProviderExcludePatterns
@@ -124,6 +130,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
     override fun apply() {
         settings.opencodeCliPath = cliPathField.text
         settings.modelName = modelField.selectedItem as? String ?: ""
+        settings.isDebugEnabled = debugCheckbox.isSelected
         settings.extensionFilesProviderEnabled = extensionFilesProviderEnabledCheckbox.isSelected
         settings.extensionFilesProviderMaxFiles = extensionFilesProviderMaxFilesSpinner.value as Int
         settings.extensionFilesProviderExcludePatterns = getExcludePatternsFromTable().toMutableList()
@@ -132,6 +139,7 @@ class RedBalloonsSettingsConfigurable : Configurable {
     override fun reset() {
         cliPathField.text = settings.opencodeCliPath
         modelField.selectedItem = settings.modelName
+        debugCheckbox.isSelected = settings.isDebugEnabled
         extensionFilesProviderEnabledCheckbox.isSelected = settings.extensionFilesProviderEnabled
         extensionFilesProviderMaxFilesSpinner.value = settings.extensionFilesProviderMaxFiles
         excludePatternsTableModel.rowCount = 0

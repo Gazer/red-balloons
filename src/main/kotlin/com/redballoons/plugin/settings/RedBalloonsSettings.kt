@@ -13,6 +13,7 @@ import com.intellij.util.xmlb.XmlSerializerUtil
 class RedBalloonsSettings : PersistentStateComponent<RedBalloonsSettings> {
     var opencodeCliPath: String = "opencode"
     var modelName: String = ""
+    var isDebugEnabled: Boolean = false
 
     // Extension Files Provider settings
     var extensionFilesProviderEnabled: Boolean = true

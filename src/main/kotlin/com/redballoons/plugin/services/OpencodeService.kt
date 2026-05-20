@@ -31,13 +31,17 @@ class OpencodeService {
     private var modelsCache: List<String>? = null
 
     fun log(message: String) {
-        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
-        val line = "[$timestamp] $message"
-        LOG.info(line)
-        try {
-            PrintWriter(FileWriter(logFile, true)).use { it.println(line) }
-        } catch (e: Exception) {
-            // ignore file write errors
+        val settings = RedBalloonsSettings.getInstance()
+
+        if (settings.isDebugEnabled) {
+            val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("HH:mm:ss.SSS"))
+            val line = "[$timestamp] $message"
+            LOG.info(line)
+            try {
+                PrintWriter(FileWriter(logFile, true)).use { it.println(line) }
+            } catch (e: Exception) {
+                // ignore file write errors
+            }
         }
     }
 
