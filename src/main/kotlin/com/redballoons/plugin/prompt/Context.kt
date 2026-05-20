@@ -2,6 +2,7 @@ package com.redballoons.plugin.prompt
 
 import com.intellij.execution.process.OSProcessHandler
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.roots.ProjectRootManager
 import com.redballoons.plugin.model.ExecutionResult
 import com.redballoons.plugin.model.SearchResult
 import com.redballoons.plugin.model.SelectionContext
@@ -112,3 +113,45 @@ class Context(
         }
     }
 }
+
+val Project.commonPath: String
+    get() {
+        val basePath = this.basePath ?: "."
+        val paths = mutableSetOf<String>()
+        paths.add(basePath)
+
+        try {
+            val roots = ProjectRootManager.getInstance(this).contentRoots
+            for (root in roots) {
+                val path = root.path
+                if (!path.isNullOrEmpty()) {
+                    paths.add(path)
+                }
+            }
+        } catch (e: Exception) {
+            // ignore
+        }
+
+        if (paths.size <= 1) {
+            return basePath
+        }
+
+        val pathLists = paths.map { it.split("/") }
+        val minSize = pathLists.minOf { it.size }
+        val commonParts = mutableListOf<String>()
+
+        for (i in 0 until minSize) {
+            val part = pathLists[0][i]
+            if (pathLists.all { it[i] == part }) {
+                commonParts.add(part)
+            } else {
+                break
+            }
+        }
+
+        val commonPath = commonParts.joinToString("/")
+        if (commonPath.isEmpty() || commonPath == "/" || commonPath.endsWith(":")) {
+            return basePath
+        }
+        return commonPath
+    }

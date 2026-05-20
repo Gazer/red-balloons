@@ -8,7 +8,7 @@ object Prompt {
     fun visual(project: Project, selectionContext: SelectionContext): Context {
         val settings = RedBalloonsSettings.getInstance()
         val context = Context(
-            workingDirectory = project.basePath ?: ".",
+            workingDirectory = project.commonPath,
             model = settings.modelName,
         )
 
@@ -26,7 +26,7 @@ object Prompt {
     fun search(project: Project): Context {
         val settings = RedBalloonsSettings.getInstance()
         val context = Context(
-            workingDirectory = project.basePath ?: ".",
+            workingDirectory = project.commonPath,
             model = settings.modelName,
         )
         context.operation = Operation.SEARCH
@@ -39,7 +39,7 @@ object Prompt {
     fun vibe(project: Project):Context {
         val settings = RedBalloonsSettings.getInstance()
         val context = Context(
-            workingDirectory = project.basePath ?: ".",
+            workingDirectory = project.commonPath,
             model = settings.modelName,
         )
         context.operation = Operation.VIBE

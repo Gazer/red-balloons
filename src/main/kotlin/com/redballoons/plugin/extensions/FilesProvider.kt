@@ -11,6 +11,7 @@ import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.psi.search.FilenameIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.redballoons.plugin.model.AutoCompleteSuggestion
+import com.redballoons.plugin.prompt.commonPath
 import com.redballoons.plugin.settings.RedBalloonsSettings
 import java.io.File
 import java.nio.file.FileSystems
@@ -35,7 +36,7 @@ class FilesProvider(private val project: Project) : CompletionProvider {
 
     private fun searchProjectFiles(prefix: String): List<AutoCompleteSuggestion> {
         val scope = GlobalSearchScope.projectScope(project)
-        val basePath = project.basePath ?: ""
+        val basePath = project.commonPath
         val query = prefix.lowercase()
 
         val allFiles = getFiles()
@@ -88,7 +89,7 @@ class FilesProvider(private val project: Project) : CompletionProvider {
 
     override fun isValid(token: String): Boolean {
         val files = getFiles()
-        val basePath = project.basePath ?: ""
+        val basePath = project.commonPath
 
         for (fileName in files) {
             // Check if token matches the file name
@@ -113,7 +114,7 @@ class FilesProvider(private val project: Project) : CompletionProvider {
             return null
         }
 
-        val file = File("${project.basePath}/$token")
+        val file = File("${project.commonPath}/$token")
         val content = readFileContent(file) ?: return null
         val ext = file.extension
         return "```$ext\n-- ${file.path}\n$content\n```"
@@ -165,6 +166,7 @@ class FilesProvider(private val project: Project) : CompletionProvider {
         // Collect all content roots from the project file index (handles modules and composite builds)
         val allContentRoots = mutableSetOf<String>()
         project.basePath?.let { allContentRoots.add(it) }
+        allContentRoots.add(project.commonPath)
 
         fileIndex.iterateContent { file ->
             val contentRoot = fileIndex.getContentRootForFile(file)

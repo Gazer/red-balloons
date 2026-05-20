@@ -128,7 +128,7 @@ class OpencodeService {
         val settings = RedBalloonsSettings.getInstance()
         return GeneralCommandLine().apply {
             exePath = settings.opencodeCliPath
-            setWorkDirectory(File(context.data?.project?.basePath ?: "."))
+            setWorkDirectory(File(context.workingDirectory))
 
             addParameter("run")
             addParameter("--agent")
