@@ -14,15 +14,11 @@ class KillSwitchAction : AnAction() {
     override fun actionPerformed(e: AnActionEvent) {
         val service = OpencodeService.getInstance()
 
-        if (service.killCurrentProcess()) {
-            JBPopupFactory.getInstance()
-                .createMessage("Opencode process stopped")
-                .showInFocusCenter()
-        } else {
-            JBPopupFactory.getInstance()
-                .createMessage("No active process to stop")
-                .showInFocusCenter()
-        }
+        service.killAll()
+
+        JBPopupFactory.getInstance()
+            .createMessage("Opencode process stopped")
+            .showInFocusCenter()
     }
 
     override fun update(e: AnActionEvent) {

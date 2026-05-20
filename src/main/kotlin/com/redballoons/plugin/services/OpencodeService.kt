@@ -27,7 +27,7 @@ class OpencodeService {
 
     private val LOG = Logger.getInstance(OpencodeService::class.java)
     private val logFile = File("/tmp/oc.txt")
-    private var currentContext: Context? = null
+    private var tasks: MutableList<Context> = mutableListOf()
     private var modelsCache: List<String>? = null
 
     fun log(message: String) {
@@ -51,17 +51,18 @@ class OpencodeService {
         SEARCH
     }
 
-    fun killCurrentProcess(): Boolean {
-        return currentContext?.process?.let { process ->
-            if (!process.isProcessTerminated) {
-                process.destroyProcess()
-                currentContext = null
-                LOG.info("Process killed by user")
-                true
-            } else {
-                false
+    fun killAll() {
+        synchronized(tasks) {
+            tasks.forEach {
+                it.process?.let { process ->
+                    if (!process.isProcessTerminated) {
+                        process.destroyProcess()
+                        LOG.info("Process killed by user")
+                    }
+                }
             }
-        } ?: false
+            tasks.clear()
+        }
     }
 
     fun getModels(refresh: Boolean = false): List<String> {
@@ -117,7 +118,8 @@ class OpencodeService {
         }
     }
 
-    fun isRunning(): Boolean = currentContext?.process?.let { !it.isProcessTerminated } ?: false
+    fun isRunning(): Boolean = tasks.any { it.process?.let { !it.isProcessTerminated } ?: false }
+
     fun makeRequest(query: String, context: Context, cb: (ExecutionResult) -> Unit) {
         val command = buildCommand(query, context)
         log("Command: ${command.commandLineString}")
@@ -144,7 +146,17 @@ class OpencodeService {
     }
 
     private fun runAsync(context: Context, command: GeneralCommandLine, onComplete: (ExecutionResult) -> Unit) {
-        ProgressManager.getInstance().run(object : Task.Backgroundable(
+        val task = createTask(context, command, onComplete)
+
+        ProgressManager.getInstance().run(task)
+
+        synchronized(tasks) {
+            tasks.add(context)
+        }
+    }
+
+    private fun createTask(context: Context, command: GeneralCommandLine, onComplete: (ExecutionResult) -> Unit): Task {
+        return object : Task.Backgroundable(
             context.data?.project,
             "${context.operation.name} Mode",
             true
@@ -226,11 +238,14 @@ class OpencodeService {
                     )
                 }
 
+                synchronized(tasks) {
+                    tasks.remove(context)
+                }
                 ApplicationManager.getApplication().invokeLater {
                     onComplete(result)
                 }
             }
-        })
+        }
     }
 
     companion object {
